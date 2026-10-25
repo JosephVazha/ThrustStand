@@ -18,28 +18,25 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+#define KISS_FRAME_SIZE 10
 
-/* USER CODE END Includes */
+typedef struct
+{
+    int8_t temperature_c;
+    uint16_t voltage_raw;       // Units: 0.01 V
+    uint16_t current_raw;       // Units: 0.01 A
+    uint16_t consumption_mah;   // Units: mAh
+    uint16_t rpm_raw;           // Protocol units: 100 RPM
+} KISS_Telemetry_t;
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
+extern volatile KISS_Telemetry_t kiss_telemetry;
+extern volatile uint8_t kiss_new_data;
 
-/* USER CODE END PTD */
+void KISS_Telemetry_Start(void);
 
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
@@ -53,19 +50,83 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
+static uint8_t kiss_rx_byte;
+static uint8_t kiss_frame[KISS_FRAME_SIZE];
+static uint8_t kiss_frame_count = 0;
 
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
+volatile KISS_Telemetry_t kiss_telemetry = {0};
+volatile uint8_t kiss_new_data = 0;
 
-/* USER CODE END 0 */
 
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
+void RCPWM_Throttle(uint8_t throttle)
+{
+	if (throttle > 100)
+		throttle = 100;
+
+	uint16_t pulse_us = 1000 + (throttle * 10);
+
+	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse_us);
+}
+
+void MultiShot_Throttle(uint8_t throttle)
+{
+
+    uint16_t pulse_us = 5 + (throttle * 20) / 100;
+
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse_us);
+}
+void KISS_Telemetry_Start(void)
+{
+    kiss_frame_count = 0;
+    kiss_new_data = 0;
+
+    HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1);
+}
+static void KISS_DecodeFrame(const uint8_t *frame)
+{
+    kiss_telemetry.temperature_c = (int8_t)frame[0];
+
+    kiss_telemetry.voltage_raw =
+        ((uint16_t)frame[1] << 8) | frame[2];
+
+    kiss_telemetry.current_raw =
+        ((uint16_t)frame[3] << 8) | frame[4];
+
+    kiss_telemetry.consumption_mah =
+        ((uint16_t)frame[5] << 8) | frame[6];
+
+    kiss_telemetry.rpm_raw =
+        ((uint16_t)frame[7] << 8) | frame[8];
+
+    kiss_new_data = 1;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if (kiss_frame_count < KISS_FRAME_SIZE)
+	{
+		kiss_frame[kiss_frame_count++] = kiss_rx_byte;
+	}
+	else
+	{
+		for (uint8_t i = 0; i < KISS_FRAME_SIZE - 1; i++)
+		{
+			kiss_frame[i] = kiss_frame[i + 1];
+		}
+
+		kiss_frame[KISS_FRAME_SIZE - 1] = kiss_rx_byte;
+	}
+
+	if (kiss_frame_count == KISS_FRAME_SIZE)
+	{
+		KISS_DecodeFrame(kiss_frame);
+	}
+
+	HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1);
+
+}
+
 int main(void)
 {
 
@@ -99,10 +160,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  RCPWM_Throttle(0);
+  HAL_Delay(5000);
+  KISS_Telemetry_Start();
   while (1)
   {
-    /* USER CODE END WHILE */
-
+	  RCPWM_Throttle(0);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -168,7 +232,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 15;
+  htim2.Init.Prescaler = 3;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 19999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -221,7 +285,7 @@ static void MX_UART4_Init(void)
   huart4.Init.Mode = UART_MODE_RX;
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_HalfDuplex_Init(&huart4) != HAL_OK)
+  if (HAL_UART_Init(&huart4) != HAL_OK)
   {
     Error_Handler();
   }
