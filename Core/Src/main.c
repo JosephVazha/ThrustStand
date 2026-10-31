@@ -17,9 +17,14 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
+
+
 
 #define KISS_FRAME_SIZE 10
 
@@ -34,12 +39,17 @@ typedef struct
 
 extern volatile KISS_Telemetry_t kiss_telemetry;
 extern volatile uint8_t kiss_new_data;
+extern UART_HandleTypeDef huart2;
+
 
 void KISS_Telemetry_Start(void);
 
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
+UART_HandleTypeDef huart2;
+
+
 
 /* USER CODE BEGIN PV */
 
@@ -50,7 +60,16 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
+static void MX_USART2_UART_Init(void);
+void UART_Print(const char *message);
+/* USER CODE BEGIN PFP */
 
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
 static uint8_t kiss_rx_byte;
 static uint8_t kiss_frame[KISS_FRAME_SIZE];
 static uint8_t kiss_frame_count = 0;
@@ -101,9 +120,22 @@ static void KISS_DecodeFrame(const uint8_t *frame)
 
     kiss_new_data = 1;
 }
+volatile uint32_t uart_rx_count = 0;
+volatile uint32_t uart_error_code = 0;
+volatile uint32_t uart_rearm_errors = 0;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+    if (huart->Instance != UART4)
+        return;
+
+    uart_rx_count++;
+    char msg[40];
+    sprintf(msg, "RX: 0x%02X (%u)\r\n",
+            (unsigned int)kiss_rx_byte,
+            (unsigned int)kiss_rx_byte);
+	UART_Print(msg);
+
 	if (kiss_frame_count < KISS_FRAME_SIZE)
 	{
 		kiss_frame[kiss_frame_count++] = kiss_rx_byte;
@@ -118,15 +150,39 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		kiss_frame[KISS_FRAME_SIZE - 1] = kiss_rx_byte;
 	}
 
-	if (kiss_frame_count == KISS_FRAME_SIZE)
-	{
-		KISS_DecodeFrame(kiss_frame);
-	}
+//	if (kiss_frame_count == KISS_FRAME_SIZE)
+//	{
+//		KISS_DecodeFrame(kiss_frame);
+//	}
 
-	HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1);
-
+	if (HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1) != HAL_OK)
+	        uart_rearm_errors++;
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == UART4)
+    {
+        uart_error_code = huart->ErrorCode;
+
+        char msg[50];
+        sprintf(msg, "UART4 ERROR: %lu\r\n", uart_error_code);
+        UART_Print(msg);
+    }
+}
+
+void UART_Print(const char *message)
+{
+    HAL_UART_Transmit(&huart2,
+                      (uint8_t *)message,
+                      strlen(message),
+                      HAL_MAX_DELAY);
+}
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
 
@@ -153,20 +209,27 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
+  MX_USART2_UART_Init();
   MX_UART4_Init();
+
+  UART_Print("STM32 USART2 is working!\r\n");
+
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  RCPWM_Throttle(0);
+  HAL_Delay(5000);
+  KISS_Telemetry_Start();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  RCPWM_Throttle(0);
-  HAL_Delay(5000);
-  KISS_Telemetry_Start();
   while (1)
   {
+
 	  RCPWM_Throttle(0);
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -232,7 +295,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 3;
+  htim2.Init.Prescaler = 15;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 19999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -282,7 +345,7 @@ static void MX_UART4_Init(void)
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;
-  huart4.Init.Mode = UART_MODE_RX;
+  huart4.Init.Mode = UART_MODE_TX_RX;
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart4) != HAL_OK)
@@ -292,6 +355,39 @@ static void MX_UART4_Init(void)
   /* USER CODE BEGIN UART4_Init 2 */
 
   /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -308,6 +404,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
