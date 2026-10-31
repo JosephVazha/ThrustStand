@@ -132,8 +132,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     uart_rx_count++;
     char msg[40];
     sprintf(msg, "RX: 0x%02X (%u)\r\n",
-            (unsigned int)kiss_rx_byte,
-            (unsigned int)kiss_rx_byte);
+    		(unsigned int)kiss_rx_byte);
 	UART_Print(msg);
 
 	if (kiss_frame_count < KISS_FRAME_SIZE)
@@ -212,7 +211,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_UART4_Init();
 
-  UART_Print("STM32 USART2 is working!\r\n");
+  //UART_Print("STM32 USART2 is working!\r\n");
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   RCPWM_Throttle(0);
@@ -295,7 +294,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 15;
+  htim2.Init.Prescaler = 3;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 19999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
