@@ -27,9 +27,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  0000605c  2**0
                   CONTENTS, READONLY
- 12 .debug_info   0000d796  00000000  00000000  0000608c  2**0
+ 12 .debug_info   0000d790  00000000  00000000  0000608c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 00001f26  00000000  00000000  00013822  2**0
+ 13 .debug_abbrev 00001f26  00000000  00000000  0001381c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  14 .debug_aranges 00000d00  00000000  00000000  00015748  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -963,11 +963,11 @@ int main(void)
  80008ea:	f000 f937 	bl	8000b5c <MX_GPIO_Init>
   MX_TIM2_Init();
  80008ee:	f000 f889 	bl	8000a04 <MX_TIM2_Init>
-  MX_USART2_UART_Init();
- 80008f2:	f000 f909 	bl	8000b08 <MX_USART2_UART_Init>
   MX_UART4_Init();
- 80008f6:	f000 f8dd 	bl	8000ab4 <MX_UART4_Init>
-
+ 80008f2:	f000 f8df 	bl	8000ab4 <MX_UART4_Init>
+  MX_USART2_UART_Init();
+ 80008f6:	f000 f907 	bl	8000b08 <MX_USART2_UART_Init>
+  /* USER CODE BEGIN 2 */
   //UART_Print("STM32 USART2 is working!\r\n");
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
@@ -982,7 +982,6 @@ int main(void)
  800090c:	f000 fb96 	bl	800103c <HAL_Delay>
   KISS_Telemetry_Start();
  8000910:	f7ff febe 	bl	8000690 <KISS_Telemetry_Start>
-  /* USER CODE BEGIN 2 */
   uint8_t throttle = 0;
  8000914:	2300      	movs	r3, #0
  8000916:	71fb      	strb	r3, [r7, #7]
