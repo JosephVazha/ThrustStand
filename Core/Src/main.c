@@ -70,7 +70,7 @@ extern volatile KISS_Telemetry_t kiss_telemetry;
 extern volatile uint8_t kiss_new_data;
 extern UART_HandleTypeDef huart2;
 uint32_t last_lcd_update = 0;
-const uint32_t lcd_interval = 2000; // 500 ms delay
+const uint32_t lcd_interval = 250; // 500 ms delay
 
 void KISS_Telemetry_Start(void);
 

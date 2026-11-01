@@ -45,12 +45,12 @@ class Sample:
     def values(self) -> dict[str, float | None]:
         return {
             "Throttle": float(self.throttle),
-            "RPM": float(self.rpm_raw * 100),
+            "ERPM": float(self.rpm_raw * 100),
             "Current": self.current_raw * 0.01,
             "Voltage": self.voltage_raw * 0.01,
             "Consumption": float(self.consumption_mah),
             "Temperature": float(self.temperature_c),
-            "Thrust": self.thrust_n,
+            "Thrust": (self.thrust_n - 263000) *-1,
         }
 
 
@@ -120,7 +120,7 @@ class SerialThread(QThread):
 
 METRICS = (
     ("Throttle", "%", "#48b7ff"),
-    ("RPM", "rpm", "#b58cff"),
+    ("ERPM", "rpm", "#b58cff"),
     ("Current", "A", "#ffad5c"),
     ("Voltage", "V", "#f3d45c"),
     ("Consumption", "mAh", "#55d6a5"),
@@ -414,7 +414,7 @@ class ThrustStand(QMainWindow):
 def self_test() -> None:
     sample = parse_data_line("DATA,50,123,456,1200,78,-3,1.25")
     assert sample.values["Throttle"] == 50
-    assert sample.values["RPM"] == 12300
+    assert sample.values["ERPM"] == 12300
     assert math.isclose(sample.values["Current"] or 0, 4.56)
     assert sample.values["Voltage"] == 12
     assert sample.values["Consumption"] == 78
