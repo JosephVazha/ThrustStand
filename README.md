@@ -8,9 +8,6 @@ A software and hardware platform for characterizing brushless DC (BLDC) motors, 
 
 - [Project Overview](#project-overview)
 - [Background and Motivation](#background-and-motivation)
-  - [The Complexity of Existing Flight-Control Software](#the-complexity-of-existing-flight-control-software)
-  - [The Lack of Affordable, Accessible Thrust Stands](#the-lack-of-affordable-accessible-thrust-stands)
-  - [Bridging the Gap](#bridging-the-gap)
 - [Features](#features)
 - [Hardware Setup](#hardware-setup)
   - [Hardware Components](#hardware-components)
