@@ -53,21 +53,23 @@ Rather than configuring an entire flight controller or relying on proprietary te
 The goal is to make it possible to command a motor, observe its behavior in real time, and log meaningful experimental data through a dedicated interface.
 More broadly, the project aims to make hobby-grade propulsion electronics more transparent. By making it easier to characterize their performance and understand their limitations, engineers can make more informed decisions about when commercial off-the-shelf (COTS) components are sufficient and when custom electronics are justified.
 This provides a more accessible middle ground between blindly relying on hobby-grade hardware and developing an entirely custom propulsion system.
-Features
-Live Telemetry: Real-time visualization of motor and system telemetry.
-ESC Control: Directly controls a FlyColor X-Cross HV3 ESC and reads its KISS telemetry.
-Thrust Measurement: Reads force measurements from a strain gauge through an ADC amplifier.
-System Status: Displays system information and measurement data on an LCD.
-Hardware-Level Access: Interfaces directly with propulsion hardware rather than relying on a flight controller abstraction.
-Hardware Setup
+## Features
+- Live Telemetry: Real-time visualization of motor and system telemetry.
+- ESC Control: Directly controls a FlyColor X-Cross HV3 ESC and reads its KISS telemetry.
+- Thrust Measurement: Reads force measurements from a strain gauge through an ADC amplifier.
+- System Status: Displays system information and measurement data on an LCD.
+- Hardware-Level Access: Interfaces directly with propulsion hardware rather than relying on a flight controller abstraction.
+
+## Hardware Setup
 The thrust stand integrates an electronic speed controller, a BLDC motor, a strain gauge, and an ADC amplifier. A microcontroller handles motor control and sensor acquisition, while a connected software interface provides telemetry visualization.
 Hardware Components
-Microcontroller: STM32F446RE (Nucleo development board).
-ESC: FlyColor X-Cross HV3 80A.
-Force Sensor: Strain gauge with an HX711 Module ADC
-Display: I2C LCD.
-Motor: BLDC motor under test.
-Wiring Diagram
+- **Microcontroller**: STM32F446RE (Nucleo development board).
+- **ESC**: FlyColor X-Cross HV3 80A.
+- **Force Sensor**: Strain gauge with an HX711 Module ADC
+- **Display**: ADM1602N Sparkfun LCD
+- **Motor**: BLDC motor under test.
+
+## Wiring Diagram
 
 ## System Architecture
 The system is organized around three primary hardware interfaces: motor control and telemetry, force measurement, and system monitoring.
