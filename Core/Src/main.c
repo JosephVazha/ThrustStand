@@ -112,6 +112,7 @@ static uint8_t kiss_rx_byte;
 static uint8_t kiss_frame[KISS_FRAME_SIZE];
 static uint8_t kiss_frame_count = 0;
 
+//volatile uint32_t last_cmd_ms = 0;
 volatile KISS_Telemetry_t kiss_telemetry = {0};
 volatile uint8_t kiss_new_data = 0;
 
@@ -162,6 +163,11 @@ volatile uint32_t uart_rx_count = 0;
 volatile uint32_t uart_error_code = 0;
 volatile uint32_t uart_rearm_errors = 0;
 
+static uint8_t cmd_rx_byte;
+static char cmd_buf[24];
+static uint8_t cmd_len = 0;
+volatile uint8_t target_throttle = 0;
+
 static const uint8_t kiss_crc_table[256] = {
     0x00, 0x07, 0x0E, 0x09, 0x1C, 0x1B, 0x12, 0x15,
     0x38, 0x3F, 0x36, 0x31, 0x24, 0x23, 0x2A, 0x2D,
@@ -207,6 +213,45 @@ static uint8_t KISS_CRC8(const uint8_t *buf, uint8_t len)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+    if (huart->Instance == USART2)
+    {
+        char c = (char)cmd_rx_byte;
+
+        if (c == '\n' || c == '\r')
+        {
+            cmd_buf[cmd_len] = 0;
+
+            if (strncmp(cmd_buf, "THROTTLE,", 9) == 0)
+            {
+                const char *p = cmd_buf + 9;
+                uint32_t v = 0;
+                uint8_t ok = (*p != 0);
+
+                while (*p)
+                {
+                    if (*p < '0' || *p > '9') { ok = 0; break; }
+                    v = v * 10 + (uint32_t)(*p - '0');
+                    if (v > 1000) { ok = 0; break; }
+                    p++;
+                }
+                if (ok)
+                    target_throttle = (v > 100) ? 100 : (uint8_t)v;
+//                	last_cmd_ms = HAL_GetTick();
+            }
+            cmd_len = 0;
+        }
+        else if (cmd_len < sizeof(cmd_buf) - 1)
+        {
+            cmd_buf[cmd_len++] = c;
+        }
+        else
+        {
+            cmd_len = 0;   // line too long, discard
+        }
+
+        HAL_UART_Receive_IT(&huart2, &cmd_rx_byte, 1);
+        return;
+    }
     if (huart->Instance != UART4)
         return;
 
@@ -247,6 +292,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     {
         uart_error_code = huart->ErrorCode;
         HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1);   // restart RX after an error
+    }
+    if (huart->Instance == USART2)
+    {
+        HAL_UART_Receive_IT(&huart2, &cmd_rx_byte, 1);
+        return;
     }
 }
 
@@ -299,19 +349,21 @@ int main(void)
   RCPWM_Throttle(0);
   HAL_Delay(5000);
   KISS_Telemetry_Start();
-  uint8_t throttle = 0;
+  HAL_UART_Receive_IT(&huart2, &cmd_rx_byte, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//      if ((HAL_GetTick() - last_cmd_ms) > 1000)
+//          target_throttle = 0;
       if (kiss_new_data)
       {
           kiss_new_data = 0;
-          UART_PrintTelemetry(throttle);
+          UART_PrintTelemetry(target_throttle);
       }
-      RCPWM_Throttle(throttle);
+      RCPWM_Throttle(target_throttle);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
