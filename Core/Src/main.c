@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 
-
+/* USER CODE BEGIN PV */
 
 #define KISS_FRAME_SIZE 10
 
@@ -49,19 +49,16 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
 
-
-
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USART2_UART_Init(void);
 void UART_Print(const char *message);
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -83,7 +80,6 @@ void UART_PrintTelemetry(uint8_t throttle_pct)
 
     UART_Print(msg);
 }
-/* USER CODE END 0 */
 static uint8_t kiss_rx_byte;
 static uint8_t kiss_frame[KISS_FRAME_SIZE];
 static uint8_t kiss_frame_count = 0;
@@ -234,6 +230,9 @@ void UART_Print(const char *message)
                       HAL_MAX_DELAY);
 }
 
+/* USER CODE END 0 */
+
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -267,13 +266,14 @@ int main(void)
   MX_USART2_UART_Init();
   MX_UART4_Init();
 
+
+  /* USER CODE BEGIN 2 */
   //UART_Print("STM32 USART2 is working!\r\n");
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   RCPWM_Throttle(0);
   HAL_Delay(5000);
   KISS_Telemetry_Start();
-  /* USER CODE BEGIN 2 */
   uint8_t throttle = 0;
   /* USER CODE END 2 */
 
