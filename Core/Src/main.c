@@ -17,39 +17,35 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-
 #include "main.h"
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <stdio.h>
 
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 
+/* USER CODE END Includes */
 
-#define KISS_FRAME_SIZE 10
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
 
-typedef struct
-{
-    int8_t temperature_c;
-    uint16_t voltage_raw;       // Units: 0.01 V
-    uint16_t current_raw;       // Units: 0.01 A
-    uint16_t consumption_mah;   // Units: mAh
-    uint16_t rpm_raw;           // Protocol units: 100 RPM
-} KISS_Telemetry_t;
+/* USER CODE END PTD */
 
-extern volatile KISS_Telemetry_t kiss_telemetry;
-extern volatile uint8_t kiss_new_data;
-extern UART_HandleTypeDef huart2;
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 
+/* USER CODE END PD */
 
-void KISS_Telemetry_Start(void);
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
-
-
 
 /* USER CODE BEGIN PV */
 
@@ -61,7 +57,7 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USART2_UART_Init(void);
-void UART_Print(const char *message);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -70,114 +66,6 @@ void UART_Print(const char *message);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
-static uint8_t kiss_rx_byte;
-static uint8_t kiss_frame[KISS_FRAME_SIZE];
-static uint8_t kiss_frame_count = 0;
-
-volatile KISS_Telemetry_t kiss_telemetry = {0};
-volatile uint8_t kiss_new_data = 0;
-
-
-void RCPWM_Throttle(uint8_t throttle)
-{
-	if (throttle > 100)
-		throttle = 100;
-
-	uint16_t pulse_us = 1000 + (throttle * 10);
-
-	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse_us);
-}
-
-void MultiShot_Throttle(uint8_t throttle)
-{
-
-    uint16_t pulse_us = 5 + (throttle * 20) / 100;
-
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse_us);
-}
-void KISS_Telemetry_Start(void)
-{
-    kiss_frame_count = 0;
-    kiss_new_data = 0;
-
-    HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1);
-}
-static void KISS_DecodeFrame(const uint8_t *frame)
-{
-    kiss_telemetry.temperature_c = (int8_t)frame[0];
-
-    kiss_telemetry.voltage_raw =
-        ((uint16_t)frame[1] << 8) | frame[2];
-
-    kiss_telemetry.current_raw =
-        ((uint16_t)frame[3] << 8) | frame[4];
-
-    kiss_telemetry.consumption_mah =
-        ((uint16_t)frame[5] << 8) | frame[6];
-
-    kiss_telemetry.rpm_raw =
-        ((uint16_t)frame[7] << 8) | frame[8];
-
-    kiss_new_data = 1;
-}
-volatile uint32_t uart_rx_count = 0;
-volatile uint32_t uart_error_code = 0;
-volatile uint32_t uart_rearm_errors = 0;
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance != UART4)
-        return;
-
-    uart_rx_count++;
-    char msg[40];
-    sprintf(msg, "RX: 0x%02X (%u)\r\n",
-            (unsigned int)kiss_rx_byte,
-            (unsigned int)kiss_rx_byte);
-	UART_Print(msg);
-
-	if (kiss_frame_count < KISS_FRAME_SIZE)
-	{
-		kiss_frame[kiss_frame_count++] = kiss_rx_byte;
-	}
-	else
-	{
-		for (uint8_t i = 0; i < KISS_FRAME_SIZE - 1; i++)
-		{
-			kiss_frame[i] = kiss_frame[i + 1];
-		}
-
-		kiss_frame[KISS_FRAME_SIZE - 1] = kiss_rx_byte;
-	}
-
-//	if (kiss_frame_count == KISS_FRAME_SIZE)
-//	{
-//		KISS_DecodeFrame(kiss_frame);
-//	}
-
-	if (HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1) != HAL_OK)
-	        uart_rearm_errors++;
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == UART4)
-    {
-        uart_error_code = huart->ErrorCode;
-
-        char msg[50];
-        sprintf(msg, "UART4 ERROR: %lu\r\n", uart_error_code);
-        UART_Print(msg);
-    }
-}
-
-void UART_Print(const char *message)
-{
-    HAL_UART_Transmit(&huart2,
-                      (uint8_t *)message,
-                      strlen(message),
-                      HAL_MAX_DELAY);
-}
 
 /**
   * @brief  The application entry point.
@@ -209,15 +97,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_USART2_UART_Init();
   MX_UART4_Init();
-
-  UART_Print("STM32 USART2 is working!\r\n");
-
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-  RCPWM_Throttle(0);
-  HAL_Delay(5000);
-  KISS_Telemetry_Start();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -274,6 +156,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -405,6 +321,7 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
