@@ -149,10 +149,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		kiss_frame[KISS_FRAME_SIZE - 1] = kiss_rx_byte;
 	}
 
-//	if (kiss_frame_count == KISS_FRAME_SIZE)
-//	{
-//		KISS_DecodeFrame(kiss_frame);
-//	}
+	if (kiss_frame_count == KISS_FRAME_SIZE)
+	{
+		KISS_DecodeFrame(kiss_frame);
+	}
 
 	if (HAL_UART_Receive_IT(&huart4, &kiss_rx_byte, 1) != HAL_OK)
 	        uart_rearm_errors++;
