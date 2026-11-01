@@ -68,7 +68,21 @@ void UART_Print(const char *message);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void UART_PrintTelemetry(uint8_t throttle_pct)
+{
+    char msg[128];
 
+    snprintf(msg, sizeof(msg),
+        "DATA,%u,%u,%u,%u,%u,%d,0.00\r\n",
+        (unsigned int)throttle_pct,
+        (unsigned int)kiss_telemetry.rpm_raw,
+        (unsigned int)kiss_telemetry.current_raw,
+        (unsigned int)kiss_telemetry.voltage_raw,
+        (unsigned int)kiss_telemetry.consumption_mah,
+        (int)kiss_telemetry.temperature_c);
+
+    UART_Print(msg);
+}
 /* USER CODE END 0 */
 static uint8_t kiss_rx_byte;
 static uint8_t kiss_frame[KISS_FRAME_SIZE];
@@ -130,10 +144,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         return;
 
     uart_rx_count++;
-    char msg[40];
-    sprintf(msg, "RX: 0x%02X (%u)\r\n",
-    		(unsigned int)kiss_rx_byte);
-	UART_Print(msg);
+//    char msg[40];
+//    sprintf(msg, "RX: 0x%02X\r\n",
+//            (unsigned int)kiss_rx_byte);
+//	UART_Print(msg);
+    UART_Print(""); //DO NOT REMOVE MAGIC CODE
 
 	if (kiss_frame_count < KISS_FRAME_SIZE)
 	{
@@ -225,8 +240,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  RCPWM_Throttle(0);
+      if (kiss_new_data)
+      {
+          kiss_new_data = 0;
+          UART_PrintTelemetry(0);
+      }
+      RCPWM_Throttle(0);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
