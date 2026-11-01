@@ -18,13 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,6 +62,7 @@ typedef struct
     uint16_t rpm_raw;           // Protocol units: 100 RPM
 } KISS_Telemetry_t;
 
+volatile int32_t hx711_raw = 0;
 extern volatile KISS_Telemetry_t kiss_telemetry;
 extern volatile uint8_t kiss_new_data;
 extern UART_HandleTypeDef huart2;
@@ -93,18 +95,19 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void UART_PrintTelemetry(uint8_t throttle_pct)
+void UART_PrintTelemetry(uint8_t throttle_pct, uint32_t hx711_raw)
 {
     char msg[128];
 
     snprintf(msg, sizeof(msg),
-        "DATA,%u,%u,%u,%u,%u,%d,0.00\r\n",
+        "DATA,%u,%u,%u,%u,%u,%d,%ld\r\n",
         (unsigned int)throttle_pct,
         (unsigned int)kiss_telemetry.rpm_raw,
         (unsigned int)kiss_telemetry.current_raw,
         (unsigned int)kiss_telemetry.voltage_raw,
         (unsigned int)kiss_telemetry.consumption_mah,
-        (int)kiss_telemetry.temperature_c);
+        (int)kiss_telemetry.temperature_c,
+    	(long)hx711_raw);
 
     UART_Print(msg);
 }
@@ -115,6 +118,7 @@ static uint8_t kiss_frame_count = 0;
 //volatile uint32_t last_cmd_ms = 0;
 volatile KISS_Telemetry_t kiss_telemetry = {0};
 volatile uint8_t kiss_new_data = 0;
+
 
 
 void RCPWM_Throttle(uint8_t throttle)
@@ -308,6 +312,43 @@ void UART_Print(const char *message)
                       HAL_MAX_DELAY);
 }
 
+
+///////////////////STRAIN GAUGE
+bool HX711_Read(volatile int32_t *value)
+{
+    // Waits for conversion
+    if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_SET)
+        return false;
+
+    uint32_t data = 0;
+
+    // Read 24 bits, MSB first
+    for (int i = 0; i < 24; i++)
+    {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+
+        data <<= 1;
+
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) == GPIO_PIN_SET)
+            data |= 1;
+
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+    }
+
+    // 25th pulse: Channel A, gain 128
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+
+    // Sign-extend the 24-bit two's complement value
+    if (data & 0x800000)
+        data |= 0xFF000000;
+
+    *value = (int32_t)data;
+
+    return true;
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -358,11 +399,13 @@ int main(void)
   {
 //      if ((HAL_GetTick() - last_cmd_ms) > 1000)
 //          target_throttle = 0;
-      if (kiss_new_data)
-      {
-          kiss_new_data = 0;
-          UART_PrintTelemetry(target_throttle);
-      }
+
+	  if (HX711_Read(&hx711_raw)|| kiss_new_data)
+	  {
+	      kiss_new_data = 0;
+
+	      UART_PrintTelemetry(target_throttle, hx711_raw);
+	  }
       RCPWM_Throttle(target_throttle);
     /* USER CODE END WHILE */
 
@@ -370,6 +413,9 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
+
+
 
 /**
   * @brief System Clock Configuration
@@ -534,13 +580,30 @@ static void MX_USART2_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PC0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
