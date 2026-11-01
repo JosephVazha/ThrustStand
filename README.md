@@ -1,4 +1,4 @@
-###Thrust Stand###
+#Thrust Stand
 A software and hardware platform for characterizing brushless DC (BLDC) motors, supporting the development and testing of advanced drone propulsion systems.
 
 Todo insert video
