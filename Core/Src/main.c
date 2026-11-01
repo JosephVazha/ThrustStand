@@ -44,6 +44,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
@@ -52,6 +54,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 #define KISS_FRAME_SIZE 10
+#define SERLCD_WRITE_ADDR (0x72 << 1)
 
 typedef struct
 {
@@ -66,7 +69,8 @@ volatile int32_t hx711_raw = 0;
 extern volatile KISS_Telemetry_t kiss_telemetry;
 extern volatile uint8_t kiss_new_data;
 extern UART_HandleTypeDef huart2;
-
+uint32_t last_lcd_update = 0;
+const uint32_t lcd_interval = 2000; // 500 ms delay
 
 void KISS_Telemetry_Start(void);
 
@@ -89,12 +93,15 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void writeLCDText(char *text);
+void update_lcd_task(void);
 void UART_PrintTelemetry(uint8_t throttle_pct, uint32_t hx711_raw)
 {
     char msg[128];
@@ -383,6 +390,7 @@ int main(void)
   MX_TIM2_Init();
   MX_UART4_Init();
   MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   //UART_Print("STM32 USART2 is working!\r\n");
 
@@ -407,15 +415,14 @@ int main(void)
 	      UART_PrintTelemetry(target_throttle, hx711_raw);
 	  }
       RCPWM_Throttle(target_throttle);
+      update_lcd_task();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
-
-
-
 
 /**
   * @brief System Clock Configuration
@@ -456,6 +463,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -588,6 +629,7 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
@@ -595,13 +637,13 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : PC0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC1 */
   GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -611,6 +653,55 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void writeLCDText(char *text)
+{
+    uint8_t clear_cmd[] = {0xFE, 0x01};
+    uint8_t home_cmd[]  = {0xFE, 0x80};
+
+    HAL_I2C_Master_Transmit(&hi2c1, SERLCD_WRITE_ADDR, clear_cmd, 2, HAL_MAX_DELAY);
+    HAL_Delay(1);
+
+    HAL_I2C_Master_Transmit(&hi2c1, SERLCD_WRITE_ADDR, home_cmd, 2, HAL_MAX_DELAY);
+    HAL_Delay(1);
+
+    HAL_I2C_Master_Transmit(&hi2c1, SERLCD_WRITE_ADDR, text, strlen(text), HAL_MAX_DELAY
+    );
+}
+
+void update_lcd_task(void) {
+    if (HAL_GetTick() - last_lcd_update >= lcd_interval) {
+        last_lcd_update = HAL_GetTick();
+
+        char row1[17]; // 16 chars + null terminator
+        char row2[17]; // 16 chars + null terminator
+        char lcd_buffer[35]; // Combined buffer for both rows + newline
+
+        // 1. Format Row 1 and get its exact length
+        int len1 = snprintf(row1, sizeof(row1), "Throttle: %d", target_throttle);
+
+        // Pad the rest of Row 1 with spaces up to 16 characters to clear ghosting
+        for (int i = len1; i < 16; i++) {
+            row1[i] = ' ';
+        }
+        row1[16] = '\0'; // Ensure null termination
+
+        // 2. Format Row 2 and get its exact length
+        int len2 = snprintf(row2, sizeof(row2), "C:%dmA V:%dmV",
+                            kiss_telemetry.current_raw,
+                            kiss_telemetry.voltage_raw);
+
+        // Pad the rest of Row 2 with spaces up to 16 characters
+        for (int i = len2; i < 16; i++) {
+            row2[i] = ' ';
+        }
+        row2[16] = '\0'; // Ensure null termination
+
+        // 3. Combine both rows into the final LCD buffer separated by a newline
+        snprintf(lcd_buffer, sizeof(lcd_buffer), "%s\n%s", row1, row2);
+
+        writeLCDText(lcd_buffer);
+    }
+}
 
 /* USER CODE END 4 */
 
