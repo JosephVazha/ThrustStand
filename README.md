@@ -48,7 +48,7 @@ Bridging the gap
 The Thrust Stand was built to address this problem by providing an affordable, flexible, and extensible hardware-software platform for propulsion characterization.
 Rather than configuring an entire flight controller or relying on proprietary testing equipment, the system communicates directly with the ESC, acquires force measurements from a strain gauge, and collects telemetry from the propulsion system.
 The goal is to make it possible to command a motor, observe its behavior in real time, and log meaningful experimental data through a dedicated interface.
-More broadly, the project aims to make hobby-grade propulsion electronics more transparent. By making it easier to characterize their performance and understand their limitations, engineers can make more informed decisions about when commercial off-the-shelf (COTS) components are sufficient and when custom electronics are justified.
+More broadly, the project aims to make hobby-grade propulsion electronics more transparent. By making it easier to characterize their performance and understand their limitations, engineers can make more informed decisions about when commercial off the shelf components are sufficient and when custom electronics are justified.
 This provides a more accessible middle ground between blindly relying on hobby-grade hardware and developing an entirely custom propulsion system.
 ## Features
 - Live Telemetry: Real-time visualization of motor and system telemetry.
