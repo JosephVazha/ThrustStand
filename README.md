@@ -108,7 +108,7 @@ Its output is amplified and digitized by an X711 ADC. The microcontroller reads 
 
 ### LCD Screen
 
-The LCD communicates with the microcontroller over I2C and provides local system status and measurement information. More details on the LCD can be found here
+A SparkFun 16x2 SerLCD communicates with the microcontroller over I2C and provides local system status and measurement information. More details on the LCD can be found [here](https://www.sparkfun.com/sparkfun-16x2-serlcd-rgb-text-qwiic.html#content-overview)
 
 ## Software Interface
 
