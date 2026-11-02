@@ -70,7 +70,7 @@ extern volatile KISS_Telemetry_t kiss_telemetry;
 extern volatile uint8_t kiss_new_data;
 extern UART_HandleTypeDef huart2;
 uint32_t last_lcd_update = 0;
-const uint32_t lcd_interval = 250; // 500 ms delay
+const uint32_t lcd_interval = 100; // 500 ms delay
 
 void KISS_Telemetry_Start(void);
 
@@ -686,10 +686,11 @@ void update_lcd_task(void) {
         row1[16] = '\0'; // Ensure null termination
 
         // 2. Format Row 2 and get its exact length
-        int len2 = snprintf(row2, sizeof(row2), "C:%dmA V:%dmV",
-                            kiss_telemetry.current_raw,
+//        int len2 = snprintf(row2, sizeof(row2), "C:%dmA V:%dmV",
+//                            kiss_telemetry.current_raw,
+//                            kiss_telemetry.voltage_raw);
+        int len2 = snprintf(row2, sizeof(row2), "V:%dmV",
                             kiss_telemetry.voltage_raw);
-
         // Pad the rest of Row 2 with spaces up to 16 characters
         for (int i = len2; i < 16; i++) {
             row2[i] = ' ';

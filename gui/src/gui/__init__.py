@@ -50,7 +50,7 @@ class Sample:
             "Voltage": self.voltage_raw * 0.01,
             "Consumption": float(self.consumption_mah),
             "Temperature": float(self.temperature_c),
-            "Thrust": (self.thrust_n - 263000) *-1,
+            "Thrust": (self.thrust_n - 263000) *0.001,
         }
 
 

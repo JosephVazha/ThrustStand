@@ -17,4 +17,4 @@
 ../Core/Src/main.c:622:13:MX_GPIO_Init	1
 ../Core/Src/main.c:656:6:writeLCDText	1
 ../Core/Src/main.c:671:6:update_lcd_task	4
-../Core/Src/main.c:712:6:Error_Handler	1
+../Core/Src/main.c:713:6:Error_Handler	1
