@@ -2,7 +2,8 @@
 
 A software and hardware platform for characterizing brushless DC (BLDC) motors, supporting the development and testing of advanced drone propulsion systems.
 
-<video controls src="media/DemoVideo.mp4" title="Thrust Stand Demo"></video>
+<!-- <video controls src="media/DemoVideo.mp4" title="Thrust Stand Demo"></video> -->
+![Demo Video](media/DemoVideo.gif)
 
 ## Table of Contents
 
