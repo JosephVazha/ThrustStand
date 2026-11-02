@@ -98,13 +98,13 @@ Python Telemetry Interface
 
 ## Reflection
 One of the biggest lessons from this project was the importance of maintaining consistency between hardware configuration tools and the actual firmware.
-Initially, I did not consistently use STM32CubeMX to manage peripheral configuration. I made several configuration changes directly in the generated source code.
-This created a mismatch between the firmware and the CubeM configuration file. Eventually, I encountered a bug where I had manually changed a timer prescaler in the source code without updating the corresponding CubeMX configuration.
+Initially, we did not consistently use STM32CubeMX to manage peripheral configuration. We made several configuration changes directly in the generated source code.
+This created a mismatch between the firmware and the CubeM configuration file. Eventually, we encountered a bug where we had manually changed a timer prescaler in the source code without updating the corresponding CubeMX configuration.
 When the project was regenerated, the manually modified value was overwritten. This caused unexpected timer behavior and took approximately two hours to identify and debug.
-The experience reinforced the importance of having a single source of truth for hardware configuration. Going forward, I would make peripheral configuration changes in CubeMX and keep generated code separate from application logic wherever possible.
+The experience reinforced the importance of having a single source of truth for hardware configuration. Going forward, we would make peripheral configuration changes in CubeMX and keep generated code separate from application logic wherever possible.
 This project highlighted the relationship between embedded software and hardware design. A system can have logically correct firmware and still fail because of peripheral configuration, electrical connections, or timing assumptions.
 I also learned the importance of developing incrementally and validating individual hardware interfaces before integrating them into a larger system.
-In future projects, I would place greater emphasis on documenting peripheral configurations, testing interfaces independently, and maintaining a clear separation between generated configuration code and application logic.
+In future projects, we would place greater emphasis on documenting peripheral configurations, testing interfaces independently, and maintaining a clear separation between generated configuration code and application logic.
 
 ## Use of AI
 AI was used primarily as a design and development aid, particularly for UI design.
