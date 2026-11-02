@@ -128,8 +128,8 @@ uv sync
 uv run main.py
 ```
 
-<video controls src="media/ThrustStandTest.mp4" title="Thrust Stand GUI"></video>
-
+<!-- <video controls src="media/ThrustStandTest.mp4" title="Thrust Stand GUI"></video> -->
+![Thrust Stand Test](media/ThrustStandTest.gif)
 
 ## Reflection
 
