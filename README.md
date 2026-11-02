@@ -78,8 +78,6 @@ The thrust stand integrates an electronic speed controller, a BLDC motor, a stra
 - **Motor**: BLDC motor under test.
 - **Battery**: Two 6S LiPo batteries in parallel.
 
-### Wiring Diagram
-<!-- TODO!!! -->
 
 ## System Architecture
 
@@ -118,8 +116,6 @@ A Python-based interface using PySide6 provides live telemetry visualization and
 It connects to the microcontroller over a serial port and displays throttle, electrical RPM, current, voltage, consumed capacity, temperature, and thrust as live readouts and time-series plots. Users can adjust the throttle from the interface and record named test runs to CSV files for later analysis.
 
 ## Setup and Usage
-
-### Embedded Firmware
 
 <!-- TODO? IDK WHAT WE NEED -->
 ### Python Telemetry Interface
